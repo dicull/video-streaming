@@ -9,7 +9,7 @@
 	"tslintIntegration": true,
     "svelteSortOrder" : "options-scripts-markup-styles",
     "svelteStrictMode": true,
-    "svelteBracketNewLine": false,
-    "svelteAllowShorthand": false,
+    "svelteBracketNewLine": true,
+    "svelteAllowShorthand": true,
     "svelteIndentScriptAndStyle": true
 }
