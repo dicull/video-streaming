@@ -1,5 +1,4 @@
 <script>
-	import Counter from './lib/Counter.svelte';
 	import { onMount } from 'svelte';
 
 	let player;
@@ -9,12 +8,19 @@
 	let loggingTextarea;
 	let logMessage = '';
 	let currentLogMessage = '';
-	let playerSize = 1280;
-	let src = 'https://s3.ap-northeast-2.amazonaws.com/tmp.mediaconvert/sample/const/origin.m3u8';
+	let playerSize = 960;
+	const s3Url = 'https://s3.ap-northeast-2.amazonaws.com';
+	const bucket = 'tmp.mediaconvert';
+	const sampleKey = 'sample/const/origin.m3u8';
+	let src = `${s3Url}/${bucket}/${sampleKey}`;
+	let isLoading = false;
 
-	const onFileChange = (e) => {};
+	const onFileChange = (e) => {
+		upload();
+	};
 
 	const handleUpload = (e) => {
+		isLoading = true;
 		inputFile.click();
 	};
 
@@ -24,12 +30,42 @@
 			if (selectedQuality === 'auto') {
 				quality.enabled = true;
 			} else {
-				if (quality.height === parseInt(selectedQuality)) {
-					quality.enabled = true;
-				} else {
-					quality.enabled = false;
-				}
+				quality.enabled = quality.height === parseInt(selectedQuality);
 			}
+		}
+	};
+
+	const upload = () => {
+		const { VITE_AWS_REGION, VITE_AWS_ACCESS, VITE_AWS_SECRET } = import.meta.env;
+		const s3 = new AWS.S3({
+			accessKeyId: VITE_AWS_ACCESS,
+			secretAccessKey: VITE_AWS_SECRET,
+			region: VITE_AWS_REGION,
+		});
+
+		const file = inputFile.files[0];
+		console.log(file);
+		if (file.size >= 100 * 1024 * 1024) {
+			return alert('100MB less only possible');
+		}
+
+		if (!!file && file.type.indexOf('video') >= 0) {
+			const key = `upload/${file.name}`;
+			const params = {
+				Bucket: bucket,
+				Key: key,
+				ContentType: file.type,
+				Body: file,
+			};
+
+			s3.putObject(params, function (err, data) {
+				if (err) {
+					console.error(err);
+					return alert(err.message);
+				}
+				// 업로드 성공
+				console.log(data);
+			});
 		}
 	};
 
@@ -80,18 +116,19 @@
 	});
 </script>
 
-<header class="position-fixed top-0 start-0 end-0">
-	<h2 class="title m-3 text-start">Video Streaming</h2>
+<header>
+	<img class="position-absolute top-0 start-0 bottom-0" src="/logo_ani.gif" />
+	<h2 class="title my-0 mx-3 py-3 text-start">Video Streaming & Transcoding</h2>
 </header>
-<main class="position-absolute top-0 bottom-0 start-0 end-0 text-center">
-	<div class="content m-3">
+<main class="text-center">
+	<div class="content pt-4">
 		<div class="container">
-			<div class="input-group mb-3">
-				<input type="text" class="form-control" placeholder=".m3u8 file url 을 입력" value={src} />
-				<button class="btn btn-outline-secondary" type="button">확인</button>
+			<div class="input-group">
+				<input type="text" class="form-control" placeholder=".m3u8 file url" value={src} />
+<!--				<button class="btn btn-outline-secondary" type="button">load</button>-->
 			</div>
-			<div>또는 직접 업로드</div>
-			<div class="m-3">
+			<div class="m-1">or</div>
+			<div class="mb-3">
 				<input type="file" hidden bind:this={inputFile} on:change={onFileChange} />
 				<button type="button" class="btn btn-outline-secondary" on:click={handleUpload}>
 					Video File Upload
@@ -107,7 +144,8 @@
 					{#if !!player && !!qualityLevels}
 						<input
 							type="radio"
-							class="btn-radio"
+							name="radio"
+							class="btn-check"
 							id="quality-auto"
 							autocomplete="off"
 							checked
@@ -117,7 +155,8 @@
 						{#each qualityLevelsButton as quality, i}
 							<input
 								type="radio"
-								class="btn-radio"
+								name="radio"
+								class="btn-check"
 								id="quality-{quality.height}"
 								autocomplete="off"
 								on:click={handleQuality.bind(null, quality.height)}
@@ -134,9 +173,9 @@
 				<input
 					type="range"
 					class="form-range"
-					min="400"
-					max="800"
-					step="200"
+					min="320"
+					max="960"
+					step="320"
 					bind:value={playerSize}
 				/>
 			</div>
@@ -144,41 +183,49 @@
 				<textarea
 					bind:this={loggingTextarea}
 					bind:value={logMessage}
-					class="log-message overflow-auto"></textarea>
+					class="log-message overflow-auto"
+				/>
 			</div>
 		</div>
 	</div>
 </main>
-<!--<footer class="position-fixed bottom-0 start-0 end-0 text-center">-->
-<!--	<p class="read-the-docs">-->
-<!--		Create with lambda + svelte + bootstrap + sass + vite-->
-<!--	</p>-->
+<footer class="text-center">
+	<p class="read-the-docs">Create with svelte + bootstrap + vite + lambda + mediaconvert</p>
+</footer>
+<div class="loading position-absolute top-0 bottom-0 start-0 end-0" class:show-loading={isLoading}>
+	<div class="loading-img-wrapper">
+		<img src="/loading.gif" />
+	</div>
+</div>
 
-<!--</footer>-->
 <style lang="scss">
 	header {
-		z-index: 1;
 		background-color: #8da9c4;
 
 		h2 {
 			font-weight: 600;
+
+			&.title {
+				margin-left: 80px !important;
+			}
+		}
+
+		img {
+			//width: 70px;
+			height: 60px;
+			margin-left: 10px;
+			margin-top: 5px;
 		}
 	}
 
 	main {
 		z-index: 0;
 		background-color: #eef4ed;
-		height: 100vh;
-		min-height: 120vh;
+		min-height: 100vh;
 		margin-bottom: 20px;
 
-		.content {
-			position: relative;
-			top: 100px;
-		}
-
 		.video-wrapper {
-			max-width: 800px;
+			max-width: 960px;
 			position: relative;
 
 			/*img.poster {
@@ -202,16 +249,25 @@
 			min-height: 120px;
 			margin: auto;
 		}
-
-		.sample-video {
-		}
-	}
-
-	footer {
-		z-index: 1;
 	}
 
 	.read-the-docs {
 		color: #888;
+	}
+
+	.loading {
+		display: none;
+		background-color: rgba(0, 0, 0, 0.7);
+
+		&.show-loading {
+			display: block;
+		}
+
+		.loading-img-wrapper {
+			position: absolute;
+			top: 50%;
+			right: 50%;
+			transform: translate(50%, -50%);
+		}
 	}
 </style>
