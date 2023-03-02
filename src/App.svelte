@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import AWS from 'aws-sdk';
 
 	let player;
 	let qualityLevels;
@@ -20,7 +21,6 @@
 	};
 
 	const handleUpload = (e) => {
-		isLoading = true;
 		inputFile.click();
 	};
 
@@ -58,13 +58,17 @@
 				Body: file,
 			};
 
+			isLoading = true;
 			s3.putObject(params, function (err, data) {
 				if (err) {
 					console.error(err);
-					return alert(err.message);
+					alert(err.message);
+					isLoading = false;
+					return false;
 				}
 				// 업로드 성공
 				console.log(data);
+				isLoading = false;
 			});
 		}
 	};
@@ -192,7 +196,7 @@
 <footer class="text-center">
 	<p class="read-the-docs">Create with svelte + bootstrap + vite + lambda + mediaconvert</p>
 </footer>
-<div class="loading position-absolute top-0 bottom-0 start-0 end-0" class:show-loading={isLoading}>
+<div class="loading position-fixed top-0 bottom-0 start-0 end-0" class:show-loading={isLoading}>
 	<div class="loading-img-wrapper">
 		<img src="/loading.gif" />
 	</div>
@@ -268,6 +272,11 @@
 			top: 50%;
 			right: 50%;
 			transform: translate(50%, -50%);
+		}
+
+		img {
+			width: 50%;
+			transform: rotate(20deg);
 		}
 	}
 </style>
